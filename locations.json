@@ -1,0 +1,5 @@
+[
+  {"id": 1, "name": "Quick Quack - Apple Valley", "state": "CA", "lat": 34.5008, "lon": -117.1859},
+  {"id": 2, "name": "Quick Quack - Phoenix", "state": "AZ", "lat": 33.4484, "lon": -112.0740},
+  {"id": 3, "name": "Mister Car Wash - Dallas", "state": "TX", "lat": 32.7767, "lon": -96.7970}
+]

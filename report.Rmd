@@ -1,0 +1,124 @@
+---
+title: "Quick Quack Car Wash Expansion Strategy"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+library(tidyverse)
+library(forecast)
+library(leaflet)
+library(tidytext)
+```
+
+# Introduction
+
+This report provides an end‑to‑end analysis of the Quick Quack Car Wash expansion strategy.  It demonstrates data cleaning, exploratory analysis, forecasting, geospatial mapping, text mining, and financial ROI modeling.  The goal is to show how data‑driven insights can inform strategic decisions.
+
+# Data Overview
+
+We use several datasets stored in the `data/` folder:
+
+- **competitor_dataset.csv** – counts of store locations by brand and state.
+- **competitor_growth_trend.csv** – historical location counts for major brands.
+- **mod_wash_forecast.csv** – projected counts for Mod Wash.
+- **membership_roi.csv** – simple ROI model for membership vs. single wash pricing.
+- **sentiment_reviews.csv** – sample customer reviews with sentiment scores.
+
+```{r read-data}
+competitor <- read.csv("data/competitor_dataset.csv")
+growth     <- read.csv("data/competitor_growth_trend.csv")
+forecast_df<- read.csv("data/mod_wash_forecast.csv")
+roi        <- read.csv("data/membership_roi.csv")
+reviews    <- read.csv("data/sentiment_reviews.csv")
+```
+
+# Competitor Presence by State
+
+The bar chart below compares location counts across brands by state.
+
+```{r competitor-bar, fig.cap="Competitor locations by state"}
+ggplot(competitor, aes(x = state, y = locations, fill = brand)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(x = "State", y = "Number of Locations", fill = "Brand") +
+  theme_minimal()
+```
+
+# Growth Trend
+
+We visualise the historical growth of each brand.  The line chart shows how store counts have evolved over time.
+
+```{r growth-trend, fig.cap="Historical store growth by brand"}
+ggplot(growth, aes(x = year, y = stores, color = brand, group = brand)) +
+  geom_line() +
+  geom_point() +
+  labs(x = "Year", y = "Number of Stores", color = "Brand") +
+  theme_minimal()
+```
+
+# Mod Wash Forecast
+
+Using the projected data, we illustrate anticipated growth for Mod Wash.
+
+```{r forecast, fig.cap="Mod Wash projected growth"}
+ggplot(forecast_df, aes(x = year, y = stores)) +
+  geom_line() +
+  geom_point() +
+  labs(x = "Year", y = "Projected Stores", title = "Mod Wash Growth Forecast") +
+  theme_minimal()
+```
+
+# Membership ROI
+
+A simple ROI model compares membership and single‑wash revenues.  The bar chart highlights revenue differences.
+
+```{r roi-plot, fig.cap="Membership vs. Single Wash Revenue"}
+ggplot(roi, aes(x = plan, y = revenue, fill = plan)) +
+  geom_bar(stat = "identity") +
+  labs(x = "Plan", y = "Revenue") +
+  theme_minimal()
+```
+
+# Customer Sentiment
+
+We examine sentiment scores from sample reviews.  A histogram shows the distribution of sentiment.
+
+```{r sentiment, fig.cap="Distribution of customer sentiment scores"}
+ggplot(reviews, aes(x = sentiment)) +
+  geom_histogram(bins = 10, color = "white") +
+  labs(x = "Sentiment Score", y = "Frequency") +
+  theme_minimal()
+```
+
+We can also extract common positive and negative words:
+
+```{r sentiment-words}
+tokens <- reviews %>%
+  unnest_tokens(word, review) %>%
+  anti_join(stop_words)
+
+word_counts <- tokens %>%
+  inner_join(get_sentiments("bing"), by = "word") %>%
+  count(sentiment, word, sort = TRUE)
+
+knitr::kable(head(word_counts, 10))
+```
+
+# Geospatial Mapping
+
+To visualise store locations, we read a JSON file with coordinates and display them using Leaflet.  (In this template, we use a small sample.  Replace with your full locations data.)
+
+```{r map, results='asis', eval=FALSE}
+# Reading the JSON data from the firebase data exports
+library(jsonlite)
+loc_data <- fromJSON("firebase/data_exports/locations.json")
+
+# Build a leaflet map (requires network access to tile servers)
+leaflet(loc_data) %>%
+  addTiles() %>%
+  addMarkers(~lon, ~lat, popup = ~name)
+```
+
+# Conclusion
+
+This template demonstrates the structure of a complete analytics case study: cleaning and exploring data, forecasting future growth, evaluating the ROI of membership plans, analysing customer sentiment, and mapping store locations.  The resulting insights can inform expansion decisions, pricing strategy, customer experience improvements, and competitive positioning.

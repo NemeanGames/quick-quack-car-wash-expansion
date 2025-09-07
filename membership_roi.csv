@@ -1,0 +1,3 @@
+plan,price,break_even_visits,revenue,notes
+Unlimited,25,3,100000,"Example monthly membership revenue"
+Single Wash,10,1,50000,"Example pay-per-wash revenue"
