@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Quick Quack Car Wash Expansion Analysis</title>
+  <style>
+    body {font-family: Arial, sans-serif; margin: 40px;}
+    h1 {color: #2c3e50;}
+    p {line-height: 1.6;}
+  </style>
+</head>
+<body>
+  <h1>Quick Quack Car Wash Expansion Strategy</h1>
+  <p>This project analyses the expansion of Quick Quack Car Wash by exploring competitor presence, growth trends, revenue models, customer sentiment, and geographic coverage. The analysis is reproducible using <strong>R Markdown</strong> and visualised via a <strong>React</strong> front‑end.</p>
+  <h2>Data Sets</h2>
+  <p>The repository includes sample CSV datasets used in the analysis:</p>
+  <ul>
+    <li><code>competitor_dataset.csv</code> – competitor count by state</li>
+    <li><code>competitor_growth_trend.csv</code> – growth trends of competitor locations</li>
+    <li><code>membership_roi.csv</code> – membership revenue and ROI projections</li>
+    <li><code>mod_wash_forecast.csv</code> – Mod Wash forecast and expansion metrics</li>
+    <li><code>sentiment_reviews.csv</code> – summary of customer sentiment from reviews</li>
+  </ul>
+  <p>Data files reside in the <code>data</code> folder of the repository.</p>
+  <h2>Interactive Map</h2>
+  <p>The front‑end component (React + Leaflet) visualises car wash locations on an interactive map. To run the app locally, see instructions in the <a href="../README.md">README</a>.</p>
+  <h2>Report</h2>
+  <p>An R Markdown report (<code>report.Rmd</code>) demonstrates how to knit the analysis into a static HTML report. To build the report locally, run:</p>
+  <pre><code>Rscript scripts/render_report.R</code></pre>
+  <p>It will create a <code>docs/</code> folder and write <code>index.html</code> inside for deployment on GitHub Pages.</p>
+  <p>This static page serves as a placeholder on GitHub Pages. Clone the repository and follow the README to build the full report and application.</p>
+</body>
+</html>
