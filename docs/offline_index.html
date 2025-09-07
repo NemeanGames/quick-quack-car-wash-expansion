@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Quick Quack Car Wash Expansion Dashboard</title>
+    <style>
+      body {
+        font-family: Arial, Helvetica, sans-serif;
+        margin: 0;
+        padding: 0;
+        background: #f7f8fa;
+        color: #333;
+      }
+      header {
+        background: #123f73;
+        color: #ffffff;
+        padding: 1rem;
+        text-align: center;
+      }
+      h1 {
+        margin: 0;
+        font-size: 1.8rem;
+      }
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 1rem;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: 1.5rem;
+        margin-top: 1.5rem;
+      }
+      /* Map canvas styling */
+      #mapContainer {
+        position: relative;
+        margin-bottom: 1.5rem;
+      }
+      #mapCanvas {
+        width: 100%;
+        height: 400px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        background: #fff;
+        cursor: grab;
+      }
+      #mapCanvas:active {
+        cursor: grabbing;
+      }
+      /* Chart canvases */
+      .chartCanvas {
+        background: #ffffff;
+        border-radius: 4px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      /* Tooltip for map markers */
+      #tooltip {
+        position: absolute;
+        background: rgba(0, 0, 0, 0.8);
+        color: #fff;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        pointer-events: none;
+        display: none;
+        z-index: 10;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Quick Quack Car Wash Expansion Dashboard</h1>
+    </header>
+    <div class="container">
+      <p>
+        This interactive dashboard brings together key metrics and geography for the
+        Quick&nbsp;Quack Car&nbsp;Wash expansion strategy. Explore competitor
+        presence, growth trends and revenue models alongside a simple map of
+        current car wash locations. All data is embedded for demonstration
+        purposes without external dependencies.
+      </p>
+      <div id="mapContainer">
+        <canvas id="mapCanvas"></canvas>
+        <div id="tooltip"></div>
+      </div>
+      <div class="grid">
+        <canvas id="brandCanvas" class="chartCanvas" height="250"></canvas>
+        <canvas id="growthCanvas" class="chartCanvas" height="250"></canvas>
+        <canvas id="revenueCanvas" class="chartCanvas" height="250"></canvas>
+        <canvas id="forecastCanvas" class="chartCanvas" height="250"></canvas>
+        <canvas id="sentimentCanvas" class="chartCanvas" height="250"></canvas>
+      </div>
+    </div>
+    <script>
+      // =======================
+      // Data definitions
+      // =======================
+      // Sample car‑wash locations with latitude and longitude for plotting.
+      const locations = [
+        { id: 1, name: "Quick Quack - Apple Valley", state: "CA", lat: 34.5008, lon: -117.1859 },
+        { id: 2, name: "Quick Quack - Phoenix", state: "AZ", lat: 33.4484, lon: -112.074 },
+        { id: 3, name: "Mister Car Wash - Dallas", state: "TX", lat: 32.7767, lon: -96.797 }
+      ];
+
+      // Competitor presence by brand
+      const brandLabels = ["Quick Quack", "Mister Car Wash", "Mod Wash"];
+      const brandTotals = [280, 390, 45];
+
+      // Growth trend over years for each brand
+      const growthYears = [2020, 2021, 2022, 2023, 2024];
+      const growthData = {
+        "Quick Quack": [200, 220, 240, 260, 280],
+        "Mister Car Wash": [480, 500, 520, 540, 560],
+        "Mod Wash": [10, 12, 15, 18, 20]
+      };
+
+      // Membership revenues
+      const membershipLabels = ["Unlimited", "Single Wash"];
+      const membershipRevenue = [100000, 50000];
+
+      // Forecasted Mod Wash store counts
+      const forecastYears = [2025, 2026, 2027];
+      const forecastStores = [30, 40, 45];
+
+      // Sentiment counts (positive vs negative)
+      const sentimentLabels = ["Positive", "Negative"];
+      const sentimentCounts = [2, 2];
+
+      // =======================
+      // Utility functions
+      // =======================
+      // Draw a pie or doughnut chart
+      function drawPieChart(ctx, labels, values, colors, title, doughnut) {
+        const canvas = ctx.canvas;
+        const width = canvas.width = canvas.parentElement.clientWidth;
+        const height = canvas.height;
+        ctx.clearRect(0, 0, width, height);
+        // Compute total for slices
+        const total = values.reduce((a, b) => a + b, 0);
+        const cx = width / 2;
+        const cy = height / 2 + 10;
+        const radius = Math.min(width, height) * 0.3;
+        let startAngle = -Math.PI / 2;
+        values.forEach((val, idx) => {
+          const slice = (val / total) * Math.PI * 2;
+          ctx.beginPath();
+          ctx.moveTo(cx, cy);
+          ctx.arc(cx, cy, radius, startAngle, startAngle + slice);
+          ctx.closePath();
+          ctx.fillStyle = colors[idx % colors.length];
+          ctx.fill();
+          startAngle += slice;
+        });
+        // Doughnut hole
+        if (doughnut) {
+          ctx.beginPath();
+          ctx.arc(cx, cy, radius * 0.55, 0, Math.PI * 2);
+          ctx.closePath();
+          ctx.fillStyle = '#f7f8fa';
+          ctx.fill();
+        }
+        // Title
+        ctx.fillStyle = '#333';
+        ctx.font = 'bold 14px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(title, width / 2, 20);
+        // Legend
+        const legendX = 10;
+        let legendY = height - labels.length * 20 - 10;
+        labels.forEach((lab, idx) => {
+          ctx.fillStyle = colors[idx % colors.length];
+          ctx.fillRect(legendX, legendY, 12, 12);
+          ctx.fillStyle = '#333';
+          ctx.font = '12px Arial';
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'top';
+          ctx.fillText(lab, legendX + 18, legendY - 2);
+          legendY += 18;
+        });
+      }
+
+      // Draw a bar chart
+      function drawBarChart(ctx, labels, values, color, title, yLabel) {
+        const canvas = ctx.canvas;
+        const width = canvas.width = canvas.parentElement.clientWidth;
+        const height = canvas.height;
+        ctx.clearRect(0, 0, width, height);
+        const margin = 40;
+        const chartWidth = width - margin * 2;
+        const chartHeight = height - margin * 2;
+        const maxVal = Math.max(...values);
+        const barWidth = chartWidth / values.length * 0.6;
+        // Axes
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(margin, margin);
+        ctx.lineTo(margin, margin + chartHeight);
+        ctx.lineTo(margin + chartWidth, margin + chartHeight);
+        ctx.stroke();
+        // Bars
+        values.forEach((val, idx) => {
+          const x = margin + (chartWidth / values.length) * idx + (chartWidth / values.length - barWidth) / 2;
+          const barHeight = (val / maxVal) * (chartHeight - 20);
+          const y = margin + chartHeight - barHeight;
+          ctx.fillStyle = color;
+          ctx.fillRect(x, y, barWidth, barHeight);
+          ctx.fillStyle = '#333';
+          ctx.font = '12px Arial';
+          ctx.textAlign = 'center';
+          ctx.fillText(labels[idx], x + barWidth / 2, margin + chartHeight + 5);
+        });
+        // Title
+        ctx.fillStyle = '#333';
+        ctx.font = 'bold 14px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(title, width / 2, 20);
+        // Y‑axis label
+        ctx.save();
+        ctx.translate(15, height / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.textAlign = 'center';
+        ctx.fillText(yLabel, 0, 0);
+        ctx.restore();
+      }
+
+      // Draw a line chart with multiple datasets
+      function drawLineChart(ctx, years, dataMap, colors, title, yLabel) {
+        const canvas = ctx.canvas;
+        const width = canvas.width = canvas.parentElement.clientWidth;
+        const height = canvas.height;
+        ctx.clearRect(0, 0, width, height);
+        const margin = 40;
+        const chartWidth = width - margin * 2;
+        const chartHeight = height - margin * 2;
+        // Determine max value across datasets
+        let maxVal = 0;
+        Object.values(dataMap).forEach(arr => {
+          maxVal = Math.max(maxVal, ...arr);
+        });
+        // Axes
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(margin, margin);
+        ctx.lineTo(margin, margin + chartHeight);
+        ctx.lineTo(margin + chartWidth, margin + chartHeight);
+        ctx.stroke();
+        // Y axis ticks
+        const yTicks = 5;
+        for (let i = 0; i <= yTicks; i++) {
+          const y = margin + chartHeight - (chartHeight * i) / yTicks;
+          const val = Math.round((maxVal * i) / yTicks);
+          ctx.fillStyle = '#666';
+          ctx.font = '10px Arial';
+          ctx.textAlign = 'right';
+          ctx.fillText(val.toString(), margin - 5, y + 3);
+          ctx.strokeStyle = '#eee';
+          ctx.beginPath();
+          ctx.moveTo(margin, y);
+          ctx.lineTo(margin + chartWidth, y);
+          ctx.stroke();
+        }
+        // X axis labels
+        years.forEach((year, idx) => {
+          const x = margin + (chartWidth / (years.length - 1)) * idx;
+          ctx.fillStyle = '#666';
+          ctx.font = '10px Arial';
+          ctx.textAlign = 'center';
+          ctx.fillText(year.toString(), x, margin + chartHeight + 15);
+        });
+        // Plot each dataset
+        const brandNames = Object.keys(dataMap);
+        brandNames.forEach((brand, bIdx) => {
+          const values = dataMap[brand];
+          ctx.strokeStyle = colors[bIdx % colors.length];
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          values.forEach((val, idx) => {
+            const x = margin + (chartWidth / (years.length - 1)) * idx;
+            const y = margin + chartHeight - (val / maxVal) * (chartHeight - 20);
+            if (idx === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          });
+          ctx.stroke();
+          // Draw legend for each series
+          const legendX = margin + chartWidth - 80;
+          const legendY = margin + 15 * bIdx;
+          ctx.fillStyle = colors[bIdx % colors.length];
+          ctx.fillRect(legendX, legendY, 10, 10);
+          ctx.fillStyle = '#333';
+          ctx.font = '10px Arial';
+          ctx.textAlign = 'left';
+          ctx.fillText(brand, legendX + 15, legendY + 10);
+        });
+        // Title
+        ctx.fillStyle = '#333';
+        ctx.font = 'bold 14px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(title, width / 2, 20);
+        // Y‑axis label
+        ctx.save();
+        ctx.translate(15, height / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.textAlign = 'center';
+        ctx.fillText(yLabel, 0, 0);
+        ctx.restore();
+      }
+
+      // Draw the custom map with zoom and pan
+      function initMap() {
+        const canvas = document.getElementById('mapCanvas');
+        const ctx = canvas.getContext('2d');
+        const tooltip = document.getElementById('tooltip');
+        // Set initial size
+        canvas.width = canvas.parentElement.clientWidth;
+        canvas.height = 400;
+        // Determine geographic bounds from the sample locations.  A small
+        // padding is added so the points are not drawn right at the edges.
+        const latVals = locations.map(l => l.lat);
+        const lonVals = locations.map(l => l.lon);
+        let minLat = Math.min(...latVals);
+        let maxLat = Math.max(...latVals);
+        let minLon = Math.min(...lonVals);
+        let maxLon = Math.max(...lonVals);
+        // add a padding of 1 degree around the bounding box
+        minLat -= 1;
+        maxLat += 1;
+        minLon -= 1;
+        maxLon += 1;
+        let scale = 1;
+        let offsetX = 0;
+        let offsetY = 0;
+        let dragging = false;
+        let lastX = 0;
+        let lastY = 0;
+        // Convert lat/lon to canvas coordinates with current transform
+        function proj(lat, lon) {
+          let x = (lon - minLon) / (maxLon - minLon);
+          let y = 1 - (lat - minLat) / (maxLat - minLat);
+          x = x * canvas.width * scale + offsetX;
+          y = y * canvas.height * scale + offsetY;
+          return { x, y };
+        }
+        // Render map points
+        function render() {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.fillStyle = '#fff';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.strokeStyle = '#ddd';
+          ctx.strokeRect(0, 0, canvas.width, canvas.height);
+          locations.forEach(loc => {
+            const { x, y } = proj(loc.lat, loc.lon);
+            ctx.beginPath();
+            ctx.arc(x, y, 6, 0, Math.PI * 2);
+            ctx.fillStyle = '#2196F3';
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+          });
+        }
+        // Mouse events for zoom and pan
+        canvas.addEventListener('wheel', e => {
+          e.preventDefault();
+          const rect = canvas.getBoundingClientRect();
+          const mx = e.clientX - rect.left;
+          const my = e.clientY - rect.top;
+          const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
+          // Adjust offsets so that zoom is centred around mouse
+          offsetX = (offsetX - mx) * zoomFactor + mx;
+          offsetY = (offsetY - my) * zoomFactor + my;
+          scale *= zoomFactor;
+          render();
+        });
+        canvas.addEventListener('mousedown', e => {
+          dragging = true;
+          lastX = e.clientX;
+          lastY = e.clientY;
+        });
+        canvas.addEventListener('mousemove', e => {
+          const rect = canvas.getBoundingClientRect();
+          const x = e.clientX - rect.left;
+          const y = e.clientY - rect.top;
+          // Show tooltip if hovering near a point
+          let hovered = null;
+          locations.forEach(loc => {
+            const pos = proj(loc.lat, loc.lon);
+            const dx = x - pos.x;
+            const dy = y - pos.y;
+            if (Math.sqrt(dx * dx + dy * dy) < 8) {
+              hovered = loc;
+            }
+          });
+          if (hovered) {
+            tooltip.style.display = 'block';
+            tooltip.style.left = e.pageX + 10 + 'px';
+            tooltip.style.top = e.pageY + 10 + 'px';
+            tooltip.textContent = `${hovered.name} (${hovered.state})`;
+          } else {
+            tooltip.style.display = 'none';
+          }
+          if (dragging) {
+            const dx = e.clientX - lastX;
+            const dy = e.clientY - lastY;
+            offsetX += dx;
+            offsetY += dy;
+            lastX = e.clientX;
+            lastY = e.clientY;
+            render();
+          }
+        });
+        canvas.addEventListener('mouseup', () => {
+          dragging = false;
+        });
+        canvas.addEventListener('mouseleave', () => {
+          dragging = false;
+          tooltip.style.display = 'none';
+        });
+        // Handle resize
+        window.addEventListener('resize', () => {
+          canvas.width = canvas.parentElement.clientWidth;
+          render();
+        });
+        render();
+      }
+
+      // Draw all charts on load
+      function drawCharts() {
+        // Pie chart for competitor presence
+        drawPieChart(
+          document.getElementById('brandCanvas').getContext('2d'),
+          brandLabels,
+          brandTotals,
+          ['#4CAF50', '#2196F3', '#FF9800'],
+          'Competitor Presence by Brand',
+          false
+        );
+        // Line chart for growth trends
+        drawLineChart(
+          document.getElementById('growthCanvas').getContext('2d'),
+          growthYears,
+          growthData,
+          ['#4CAF50', '#2196F3', '#FF9800'],
+          'Store Growth by Brand',
+          'Stores'
+        );
+        // Bar chart for membership revenue
+        drawBarChart(
+          document.getElementById('revenueCanvas').getContext('2d'),
+          membershipLabels,
+          membershipRevenue,
+          '#4CAF50',
+          'Membership Plan Revenues',
+          'Revenue ($)'
+        );
+        // Line chart for forecast
+        drawLineChart(
+          document.getElementById('forecastCanvas').getContext('2d'),
+          forecastYears,
+          { 'Projected Stores': forecastStores },
+          ['#FF9800'],
+          'Mod Wash Expansion Forecast',
+          'Stores'
+        );
+        // Doughnut chart for sentiment
+        drawPieChart(
+          document.getElementById('sentimentCanvas').getContext('2d'),
+          sentimentLabels,
+          sentimentCounts,
+          ['#4CAF50', '#F44336'],
+          'Customer Sentiment',
+          true
+        );
+      }
+
+      // Initialise map and charts when page is fully loaded
+      window.addEventListener('load', () => {
+        initMap();
+        drawCharts();
+      });
+    </script>
+  </body>
+</html>
