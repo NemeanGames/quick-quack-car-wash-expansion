@@ -1,0 +1,321 @@
+<!--
+  Interactive dashboard page for the Quick Quack Car Wash expansion project.
+  This file provides a fully client‑side webapp showcasing the data
+  supplied in the project. It includes an interactive Leaflet map
+  displaying car‑wash locations and several charts powered by Chart.js
+  illustrating competitor presence, growth trends, revenue models,
+  expansion forecasts and sentiment analysis. All data is embedded
+  directly into the page so no external API calls are required.
+  The page uses only CDN‑hosted libraries (Leaflet and Chart.js)
+  and therefore functions without a build step. Drop this file into
+  the docs/ directory of your repository and enable GitHub Pages to
+  publish it.  ©2025 Quick Quack Car Wash example.
+-->
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Quick Quack Car Wash Expansion Dashboard</title>
+    <!-- Leaflet CSS -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4BaeZqE2I5xX2XqoorNwYEhvz8NxbYC4zZjC2ro+k0="
+      crossorigin=""
+    />
+    <style>
+      body {
+        font-family: Arial, Helvetica, sans-serif;
+        margin: 0;
+        padding: 0;
+        background: #f7f8fa;
+      }
+      header {
+        background: #123f73;
+        color: #ffffff;
+        padding: 1rem;
+        text-align: center;
+      }
+      h1 {
+        margin: 0;
+        font-size: 1.8rem;
+      }
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 1rem;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: 1.5rem;
+        margin-top: 1.5rem;
+      }
+      #map {
+        height: 400px;
+        width: 100%;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+      }
+      canvas {
+        background: #ffffff;
+        border-radius: 4px;
+        padding: 1rem;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      footer {
+        margin-top: 2rem;
+        padding: 1rem;
+        text-align: center;
+        font-size: 0.8rem;
+        color: #666;
+      }
+      footer a {
+        color: #123f73;
+        text-decoration: none;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Quick Quack Car Wash Expansion Dashboard</h1>
+    </header>
+    <div class="container">
+      <p>
+        This interactive dashboard brings together key metrics and
+        geography for the Quick Quack Car Wash expansion strategy. Explore
+        competitor presence, growth trends and revenue models alongside a
+        map of current car wash locations. All data is embedded for
+        demonstration purposes.
+      </p>
+      <div id="map"></div>
+      <div class="grid">
+        <canvas id="brandChart" height="250"></canvas>
+        <canvas id="growthChart" height="250"></canvas>
+        <canvas id="revenueChart" height="250"></canvas>
+        <canvas id="forecastChart" height="250"></canvas>
+        <canvas id="sentimentChart" height="250"></canvas>
+      </div>
+    </div>
+    <footer>
+      Built with
+      <a href="https://leafletjs.com/" target="_blank">Leaflet</a>
+      &amp;
+      <a href="https://www.chartjs.org/" target="_blank">Chart.js</a>.
+    </footer>
+
+    <!-- Leaflet JS -->
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-o3PVcPBUm5Xia24F2tYzKkrsAwHVsFfV4v0v8uH4V34="
+      crossorigin=""
+    ></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script>
+      // Embedded dataset: car wash locations with lat/lon and names
+      const locations = [
+        { id: 1, name: "Quick Quack - Apple Valley", state: "CA", lat: 34.5008, lon: -117.1859 },
+        { id: 2, name: "Quick Quack - Phoenix", state: "AZ", lat: 33.4484, lon: -112.074 },
+        { id: 3, name: "Mister Car Wash - Dallas", state: "TX", lat: 32.7767, lon: -96.797 }
+      ];
+
+      // Chart data derived from project CSVs
+      // Competitor presence by brand (sum of locations)
+      const brandLabels = ["Quick Quack", "Mister Car Wash", "Mod Wash"];
+      const brandTotals = [280, 390, 45];
+
+      // Growth trend over years for each brand
+      const growthYears = [2020, 2021, 2022, 2023, 2024];
+      const growthData = {
+        "Quick Quack": [200, 220, 240, 260, 280],
+        "Mister Car Wash": [480, 500, 520, 540, 560],
+        "Mod Wash": [10, 12, 15, 18, 20]
+      };
+
+      // Membership plan revenues
+      const membershipLabels = ["Unlimited", "Single Wash"];
+      const membershipRevenue = [100000, 50000];
+
+      // Forecasted Mod Wash stores (example expansion forecast)
+      const forecastYears = [2025, 2026, 2027];
+      const forecastStores = [30, 40, 45];
+
+      // Sentiment counts (positive vs negative)
+      const sentimentLabels = ["Positive", "Negative"];
+      const sentimentCounts = [2, 2];
+
+      function initMap() {
+        // Compute center as average of coordinates
+        const avgLat = locations.reduce((sum, loc) => sum + loc.lat, 0) / locations.length;
+        const avgLon = locations.reduce((sum, loc) => sum + loc.lon, 0) / locations.length;
+        const map = L.map("map").setView([avgLat, avgLon], 5);
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          maxZoom: 19,
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+        locations.forEach(loc => {
+          const marker = L.marker([loc.lat, loc.lon]).addTo(map);
+          marker.bindPopup(`<strong>${loc.name}</strong><br/>${loc.state}`);
+        });
+      }
+
+      function createBrandChart() {
+        const ctx = document.getElementById("brandChart").getContext("2d");
+        new Chart(ctx, {
+          type: "pie",
+          data: {
+            labels: brandLabels,
+            datasets: [
+              {
+                data: brandTotals,
+                backgroundColor: ["#4CAF50", "#2196F3", "#FF9800"],
+                borderWidth: 1
+              }
+            ]
+          },
+          options: {
+            plugins: {
+              title: {
+                display: true,
+                text: "Competitor Presence by Brand"
+              },
+              legend: { position: 'bottom' }
+            }
+          }
+        });
+      }
+
+      function createGrowthChart() {
+        const ctx = document.getElementById("growthChart").getContext("2d");
+        new Chart(ctx, {
+          type: "line",
+          data: {
+            labels: growthYears,
+            datasets: Object.keys(growthData).map((brand, idx) => ({
+              label: brand,
+              data: growthData[brand],
+              fill: false,
+              borderColor: ["#4CAF50", "#2196F3", "#FF9800"][idx],
+              tension: 0.2
+            }))
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              title: {
+                display: true,
+                text: "Store Growth by Brand"
+              },
+              legend: { position: 'bottom' }
+            },
+            scales: {
+              x: { title: { display: true, text: "Year" } },
+              y: { title: { display: true, text: "Stores" }, beginAtZero: true }
+            }
+          }
+        });
+      }
+
+      function createRevenueChart() {
+        const ctx = document.getElementById("revenueChart").getContext("2d");
+        new Chart(ctx, {
+          type: "bar",
+          data: {
+            labels: membershipLabels,
+            datasets: [
+              {
+                label: "Monthly Revenue ($)",
+                data: membershipRevenue,
+                backgroundColor: ["#4CAF50", "#2196F3"],
+                borderRadius: 4
+              }
+            ]
+          },
+          options: {
+            plugins: {
+              title: {
+                display: true,
+                text: "Membership Plan Revenues"
+              },
+              legend: { display: false }
+            },
+            scales: {
+              x: { title: { display: true, text: "Plan" } },
+              y: { title: { display: true, text: "Revenue ($)" }, beginAtZero: true }
+            }
+          }
+        });
+      }
+
+      function createForecastChart() {
+        const ctx = document.getElementById("forecastChart").getContext("2d");
+        new Chart(ctx, {
+          type: "line",
+          data: {
+            labels: forecastYears,
+            datasets: [
+              {
+                label: "Projected Stores",
+                data: forecastStores,
+                borderColor: "#FF9800",
+                fill: false,
+                tension: 0.3
+              }
+            ]
+          },
+          options: {
+            plugins: {
+              title: {
+                display: true,
+                text: "Mod Wash Expansion Forecast"
+              },
+              legend: { display: false }
+            },
+            scales: {
+              x: { title: { display: true, text: "Year" } },
+              y: { title: { display: true, text: "Stores" }, beginAtZero: true }
+            }
+          }
+        });
+      }
+
+      function createSentimentChart() {
+        const ctx = document.getElementById("sentimentChart").getContext("2d");
+        new Chart(ctx, {
+          type: "doughnut",
+          data: {
+            labels: sentimentLabels,
+            datasets: [
+              {
+                data: sentimentCounts,
+                backgroundColor: ["#4CAF50", "#F44336"],
+                borderWidth: 1
+              }
+            ]
+          },
+          options: {
+            plugins: {
+              title: {
+                display: true,
+                text: "Customer Sentiment"
+              },
+              legend: { position: 'bottom' }
+            }
+          }
+        });
+      }
+
+      // Initialize map and charts when the DOM is ready
+      document.addEventListener("DOMContentLoaded", () => {
+        initMap();
+        createBrandChart();
+        createGrowthChart();
+        createRevenueChart();
+        createForecastChart();
+        createSentimentChart();
+      });
+    </script>
+  </body>
+</html>
