@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Car Wash Analytics Dashboard</title>
+  <!-- Local Leaflet and Chart.js libraries -->
+  <link rel="stylesheet" href="leaflet.css" />
+  <link rel="stylesheet" href="style.css" />
+  <script src="leaflet.js"></script>
+  <script src="chart.umd.min.js"></script>
+</head>
+<body>
+  <nav class="navbar">
+    <a href="index.html">Home</a>
+    <a href="dashboard.html" class="active">Dashboard</a>
+  </nav>
+  <header class="page-header">
+    <h1>Quick Quack Car Wash Analytics Dashboard</h1>
+    <p>
+      Explore key metrics about the car‑wash market. Use the interactive map to
+      see existing locations and browse charts summarising competitor growth,
+      membership revenue, forecasted expansion and customer sentiment.
+    </p>
+  </header>
+  <main>
+    <section class="map-section">
+      <h2>Locations</h2>
+      <div id="map"></div>
+    </section>
+    <section class="charts-section">
+      <h2>Analytics</h2>
+      <div class="chart-grid">
+        <div class="chart-card">
+          <h3>Competitor Presence by State</h3>
+          <canvas id="competitorChart"></canvas>
+        </div>
+        <div class="chart-card">
+          <h3>Growth Trend by Brand</h3>
+          <canvas id="growthChart"></canvas>
+        </div>
+        <div class="chart-card">
+          <h3>Membership Revenue</h3>
+          <canvas id="roiChart"></canvas>
+        </div>
+        <div class="chart-card">
+          <h3>Forecasted New Stores</h3>
+          <canvas id="forecastChart"></canvas>
+        </div>
+        <div class="chart-card">
+          <h3>Customer Sentiment</h3>
+          <canvas id="sentimentChart"></canvas>
+        </div>
+      </div>
+    </section>
+  </main>
+  <footer class="page-footer">
+    <p>
+      Data derived from sample datasets in the Quick Quack Car Wash expansion
+      project. This dashboard is a demonstration of analytics capabilities only.
+    </p>
+  </footer>
+  <script>
+    // ----- Embedded data arrays -----
+    // Locations for the map (id, name, state, lat, lon)
+    const locations = [
+      { id: 1, name: "Quick Quack - Apple Valley", state: "CA", lat: 34.5008, lon: -117.1859 },
+      { id: 2, name: "Quick Quack - Phoenix", state: "AZ", lat: 33.4484, lon: -112.074 },
+      { id: 3, name: "Mister Car Wash - Dallas", state: "TX", lat: 32.7767, lon: -96.797 }
+    ];
+
+    // Competitor presence aggregated by state (sample counts)
+    const competitorStates = ["AZ", "CA", "CO", "TX", "UT"];
+    const competitorCounts = [80, 200, 60, 315, 60];
+
+    // Growth trend by brand (stores over years)
+    const growthYears = [2020, 2021, 2022, 2023, 2024];
+    const growthData = {
+      "Quick Quack": [200, 220, 240, 260, 280],
+      "Mister Car Wash": [480, 500, 520, 540, 560],
+      "Mod Wash": [10, 12, 15, 18, 20]
+    };
+
+    // Membership revenue by plan
+    const roiLabels = ["Unlimited", "Single Wash"];
+    const roiRevenue = [100000, 50000];
+
+    // Forecasted store openings
+    const forecastYears = [2025, 2026, 2027];
+    const forecastStores = [30, 40, 45];
+
+    // Customer sentiment counts (positive vs negative)
+    const sentimentLabels = ["Positive", "Negative"];
+    const sentimentCounts = [2, 2];
+
+    // ----- Map initialisation -----
+    const map = L.map("map").setView([34.5, -108.5], 4);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 18,
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+    locations.forEach(loc => {
+      const marker = L.marker([loc.lat, loc.lon]).addTo(map);
+      marker.bindPopup(`<strong>${loc.name}</strong><br/>${loc.state}`);
+    });
+
+    // ----- Chart.js configuration -----
+    // Competitor presence pie chart
+    new Chart(document.getElementById('competitorChart').getContext('2d'), {
+      type: 'doughnut',
+      data: {
+        labels: competitorStates,
+        datasets: [{
+          data: competitorCounts,
+          backgroundColor: ['#4C78A8', '#F58518', '#E45756', '#72B7B2', '#FFBF79']
+        }]
+      },
+      options: {
+        plugins: { legend: { position: 'bottom' } }
+      }
+    });
+
+    // Growth trend line chart with multiple brands
+    const growthDatasets = Object.keys(growthData).map((brand, idx) => {
+      const colors = ['#4C78A8', '#F58518', '#72B7B2'];
+      return {
+        label: brand,
+        data: growthData[brand],
+        borderColor: colors[idx % colors.length],
+        backgroundColor: colors[idx % colors.length],
+        tension: 0.3
+      };
+    });
+    new Chart(document.getElementById('growthChart').getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: growthYears,
+        datasets: growthDatasets
+      },
+      options: {
+        scales: {
+          x: { title: { display: true, text: 'Year' } },
+          y: { title: { display: true, text: 'Stores' } }
+        }
+      }
+    });
+
+    // Membership revenue bar chart
+    new Chart(document.getElementById('roiChart').getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: roiLabels,
+        datasets: [{
+          label: 'Revenue (USD)',
+          data: roiRevenue,
+          backgroundColor: ['#4C78A8', '#F58518']
+        }]
+      },
+      options: {
+        scales: {
+          y: { beginAtZero: true, title: { display: true, text: 'Revenue' } }
+        },
+        plugins: { legend: { display: false } }
+      }
+    });
+
+    // Forecasted store openings line chart
+    new Chart(document.getElementById('forecastChart').getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: forecastYears,
+        datasets: [{
+          label: 'Mod Wash Stores',
+          data: forecastStores,
+          borderColor: '#72B7B2',
+          backgroundColor: '#72B7B2',
+          tension: 0.3
+        }]
+      },
+      options: {
+        scales: {
+          x: { title: { display: true, text: 'Year' } },
+          y: { title: { display: true, text: 'Stores' } }
+        }
+      }
+    });
+
+    // Customer sentiment doughnut chart
+    new Chart(document.getElementById('sentimentChart').getContext('2d'), {
+      type: 'doughnut',
+      data: {
+        labels: sentimentLabels,
+        datasets: [{
+          data: sentimentCounts,
+          backgroundColor: ['#4C78A8', '#E45756']
+        }]
+      },
+      options: {
+        plugins: { legend: { position: 'bottom' } }
+      }
+    });
+  </script>
+</body>
+</html>
