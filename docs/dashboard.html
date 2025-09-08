@@ -26,6 +26,11 @@
   <main>
     <section class="map-section">
       <h2>Locations</h2>
+      <!-- Search interface for finding specific locations or competitors -->
+      <div class="search-container">
+        <input type="text" id="searchBox" placeholder="Search by name or state" />
+        <button id="searchBtn">Search</button>
+      </div>
       <div id="map"></div>
     </section>
     <section class="charts-section">
@@ -69,6 +74,13 @@
       { id: 3, name: "Mister Car Wash - Dallas", state: "TX", lat: 32.7767, lon: -96.797 }
     ];
 
+    // Sample competitor locations for demonstration. These are fictional coordinates near major cities.
+    const competitors = [
+      { id: 101, name: "Mister Car Wash - Phoenix", state: "AZ", lat: 33.4484, lon: -112.068 },
+      { id: 102, name: "Mod Wash - Tempe", state: "AZ", lat: 33.4255, lon: -111.94 },
+      { id: 103, name: "Mister Car Wash - Los Angeles", state: "CA", lat: 34.0522, lon: -118.2437 }
+    ];
+
     // Competitor presence aggregated by state (sample counts)
     const competitorStates = ["AZ", "CA", "CO", "TX", "UT"];
     const competitorCounts = [80, 200, 60, 315, 60];
@@ -94,14 +106,87 @@
     const sentimentCounts = [2, 2];
 
     // ----- Map initialisation -----
+    // Initialise the Leaflet map and base layer
     const map = L.map("map").setView([34.5, -108.5], 4);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 18,
       attribution: '© OpenStreetMap contributors'
     }).addTo(map);
+
+    // Create layer groups for our locations, competitors and heat map
+    const qqLayer = L.layerGroup();
+    const compLayer = L.layerGroup();
+    const heatLayer = L.layerGroup();
+    // Store marker references for search functionality
+    const markerRegistry = [];
+
+    // Add Quick Quack markers as circle markers (blue) to avoid remote icon dependencies
     locations.forEach(loc => {
-      const marker = L.marker([loc.lat, loc.lon]).addTo(map);
+      const marker = L.circleMarker([loc.lat, loc.lon], {
+        radius: 6,
+        color: '#4C78A8',
+        fillColor: '#4C78A8',
+        fillOpacity: 0.9
+      });
       marker.bindPopup(`<strong>${loc.name}</strong><br/>${loc.state}`);
+      marker.addTo(qqLayer);
+      markerRegistry.push({ name: loc.name, marker });
+    });
+
+    // Add competitor markers as circle markers (red)
+    competitors.forEach(loc => {
+      const marker = L.circleMarker([loc.lat, loc.lon], {
+        radius: 6,
+        color: '#E45756',
+        fillColor: '#E45756',
+        fillOpacity: 0.9
+      });
+      marker.bindPopup(`<strong>${loc.name}</strong><br/>${loc.state}`);
+      marker.addTo(compLayer);
+      markerRegistry.push({ name: loc.name, marker });
+    });
+
+    // Build a simple heat‑map using translucent circles.
+    const allPoints = [...locations, ...competitors];
+    allPoints.forEach(pt => {
+      L.circle([pt.lat, pt.lon], {
+        radius: 50000, // radius in metres
+        color: '#ff5722',
+        weight: 0,
+        fillColor: '#ff5722',
+        fillOpacity: 0.3
+      }).addTo(heatLayer);
+    });
+
+    // Add layer control for toggling between overlays
+    const overlays = {
+      'Quick Quack Locations': qqLayer,
+      'Competitor Locations': compLayer,
+      'Heatmap': heatLayer
+    };
+    L.control.layers(null, overlays).addTo(map);
+    // Display default layers
+    qqLayer.addTo(map);
+    compLayer.addTo(map);
+
+    // Search function to find a location or competitor by name or state
+    function searchLocation() {
+      const query = document.getElementById('searchBox').value.trim().toLowerCase();
+      if (!query) return;
+      let found = null;
+      markerRegistry.forEach(obj => {
+        if (obj.name.toLowerCase().includes(query)) {
+          found = obj.marker;
+        }
+      });
+      if (found) {
+        map.setView(found.getLatLng(), 10);
+        found.openPopup();
+      }
+    }
+    document.getElementById('searchBtn').addEventListener('click', searchLocation);
+    document.getElementById('searchBox').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') searchLocation();
     });
 
     // ----- Chart.js configuration -----
